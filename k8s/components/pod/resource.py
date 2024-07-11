@@ -51,7 +51,10 @@ class Pod(Resource):
                 return NaemonStatus(NaemonState.OK, self.perf.AVAILABLE)
             else:
                 return NaemonStatus(NaemonState.CRITICAL, self.perf.UNAVAILABLE)
-        elif cnd_type not in STATUSES and cnd_status == "True":
-            return NaemonStatus(NaemonState.WARNING, self.perf.DEGRADED)
+        elif cnd_type not in STATUSES:
+            if cnd_status == "True":
+                return NaemonStatus(NaemonState.OK, self.perf.AVAILABLE)
+            else:
+                return NaemonStatus(NaemonState.WARNING, self.perf.DEGRADED)
         elif self.phase == Phase.pending:
             return NaemonStatus(NaemonState.WARNING, self.perf.PENDING)
