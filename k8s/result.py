@@ -1,13 +1,15 @@
 import sys
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 from k8s.consts import (
     NaemonState,
+    HealthThreshold,
     PERFDATA_SEPARATOR,
     RESULT_SUCCESS,
     RESULT_CRITICAL,
     RESULT_WARNING,
+
 )
 from k8s.ignore import get_expression_pattern, is_ignored_resource
 
@@ -15,27 +17,58 @@ Output = namedtuple("Output", ["state", "message", "channel"])
 
 
 class Result:
-    def __init__(self, cls, items, expressions):
+    def __init__(self, cls, items, expressions, buffer_time, group_by):
         self._messages = {}
         self._perfdata = {v.value: 0 for v in cls.PerfMap}
         self._expression_patterns = get_expression_pattern(expressions)
-        self._register_conditions([cls(i).condition for i in items])
+        self._group_by = group_by
+        self._register_conditions([cls(i, buffer_time=buffer_time).condition for i in items])
+
 
     def _register_conditions(self, conditions):
         """Registers conditions perfdata and messages
 
         :param conditions: [(message<str>, status<NaemonStatus>), ...]
         """
-
-        for message, status in conditions:
+        groups = defaultdict(list)
+        for message, status, labels in conditions:
             # Skip adding to result if resource is in ignore list
             if is_ignored_resource(message, self._expression_patterns):
                 continue
             if status.state not in self._messages:
                 self._messages[status.state] = []
 
-            self._perfdata[status.perfkey.value] += 1
-            self._messages[status.state].append(message)
+            # group_label = labels.get("app.kubernetes.io/name")
+            group_label = None
+            if self._group_by is not None:
+                group_label = labels.get(self._group_by)
+
+            if group_label is not None:
+                groups[group_label].append(status)
+            else:
+                self._perfdata[status.perfkey.value] += 1
+                self._messages[status.state].append(message)
+
+        for group in groups.items():
+            group_status = NaemonState.OK
+            resource_ok = 0
+            resource_error = 0
+            for status in group[1]:
+                if status.state == NaemonState.OK:
+                    resource_ok += 1
+                else:
+                    resource_error += 1
+                self._perfdata[status.perfkey.value] += 1
+            health_percentage = resource_ok / (resource_ok+resource_error) * 100
+            message = "Group {0} health is {1}%".format(group[0], health_percentage)
+            if health_percentage <= HealthThreshold.CRITICAL.value:
+                group_status = NaemonState.CRITICAL
+            elif health_percentage <= HealthThreshold.WARNING.value:
+                group_status = NaemonState.WARNING
+
+            if group_status not in self._messages:
+                self._messages[group_status] = []
+            self._messages[group_status].append(message)
 
     @property
     def perfdata(self):

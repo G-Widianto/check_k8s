@@ -18,6 +18,8 @@ class Default(Enum):
     resource = None
     ignore = None
     selector = None
+    buffer_time = 0.0
+    group_by = None
 
 
 opts = [
@@ -136,6 +138,28 @@ opts = [
             "default": Default.selector.value,
             "required": False,
             "help": "Label selector query to be used.",
+        },
+    ),
+    (
+        "--group_by",
+        {
+            "dest": "group_by",
+            "action": "store",
+            "type": str,
+            "default": Default.group_by.value,
+            "required": False,
+            "help": "Label to be used to group resources, e.g `app.kubernetes.io/name`",
+        },
+    ),
+    (
+        "--buffer_time",
+        {
+            "dest": "buffer_time",
+            "action": "store",
+            "type": float,
+            "default": float(Default.buffer_time.value),
+            "required": False,
+            "help": "Buffer time in seconds that is considered OK if resource is not normal (default: %(default)s)",
         },
     ),
     (
