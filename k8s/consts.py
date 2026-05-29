@@ -15,3 +15,8 @@ class NaemonState(Enum):
     WARNING = 1
     CRITICAL = 2
     UNKNOWN = 3
+
+class HealthThreshold(Enum):
+    OK = 100.0
+    WARNING = 99.9
+    CRITICAL = 49.9

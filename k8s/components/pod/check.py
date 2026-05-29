@@ -3,7 +3,7 @@ from k8s.result import Result
 from .resource import Pod
 
 
-def check_pods(items, expressions):
+def check_pods(items, expressions, buffer_time=0.0, group_by=None):
     """Check health of one or more Pods and associated Containers
 
     Documentation:
@@ -14,4 +14,4 @@ def check_pods(items, expressions):
     :return: Pods health summary
     """
 
-    return Result(Pod, items, expressions)
+    return Result(Pod, items, expressions, buffer_time, group_by)
